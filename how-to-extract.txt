@@ -1,0 +1,3 @@
+curl <desired-file-url> --output <output file name>.tar
+tar xopf <output file name>.tar
+
