@@ -5,7 +5,7 @@ import extractor
 
 e = extractor.Extractor()
 
-fname = "wfs.t00z.ipe10.20230629_211000.nc"
+fname = "data-no-upload/wfs.t00z.ipe10.20230629_211000.nc"
 #fname = "wfs.t00z.ipe05.20230629_211000.nc"
 
 
