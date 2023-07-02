@@ -17,13 +17,15 @@ class Extractor:
 
         return fullurl
 
-    def extract_data(self, filename):
+    def extract_data(self, filename, k):
         data = nc.Dataset(filename)
-        print(data["alt"][:].shape)
-        print(data["lon"][:].shape)
-        print(data["electron_temperature"][:].shape)
+        return data[k][:]
+
+    def get_keys(self, filename):
+        data = nc.Dataset(filename)
+        print(data)
         
 
-e = Extractor()
+#e = Extractor()
 #print(e.get_first_dir(datetime.datetime.now()))
-e.extract_data("wfs.t18z.ipe10.20230702_180000.nc")
+#e.extract_data("wfs.t18z.ipe10.20230702_180000.nc")
