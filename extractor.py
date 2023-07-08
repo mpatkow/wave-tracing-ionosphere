@@ -1,6 +1,7 @@
 import numpy as np
 import datetime
 import netCDF4 as nc
+import requests
 
 class Extractor:
     def __init__(self):
@@ -12,8 +13,16 @@ class Extractor:
 
     def get_full_url(self):
         fullurl = self.base_url 
-        currtime = datetime.datetime.now()
-        fullurl += self.get_first_dir(currtime) + "/"
+        currtime = datetime.datetime.utcnow()
+        first_dir = self.get_first_dir(currtime)
+        fullurl += first_dir + "/"
+
+        for hour in ["00,06,12,18"]:
+            try:
+                print(first_dir)
+            except:
+                pass
+
 
         return fullurl
 
@@ -27,5 +36,6 @@ class Extractor:
         
 
 #e = Extractor()
-#print(e.get_first_dir(datetime.datetime.now()))
+#print(e.get_full_url())
+
 #e.extract_data("wfs.t18z.ipe10.20230702_180000.nc")

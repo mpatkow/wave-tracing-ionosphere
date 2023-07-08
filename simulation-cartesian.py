@@ -8,293 +8,131 @@ import sys
 import extractor
 import mpl_toolkits.mplot3d.axes3d as axes3d
 
-
+# TODO:
 # GET MOST RECENT CURL FROM THE WEBSITE
-
-
 # READ REAL TIME DATA
-# SWITCH TO CARTESIAN
+# Ignoring curvature of the earth at the moment.
+# Only launch angle at the moment, no azimuthal choice
+# Therefore, we only count [x,z]
+# FIXME there could be a problem with getting the data at a point. (weird indexing of arrays).
+# FIXME this could be fixed by making a good get_ne function
+# Take nearby snapshot for gradient?
+# stupid reversing of coordinates, fix.
 
-#make module to import noaa data
-earth_radius = 6371*1000
-transmitter_f = 1.1*10**7                                                   # In Hz
-#wave_vel = 3*10**8                                                      # in m/s
-transmitter_position_spher = np.array([earth_radius,3.141*6/8, 50/180 * 3.141])
-initial_direction = np.array([3*10**8,0,-0.00001])                             # d/dt[r, theta, phi], where theta = polar angle, phi = azymuthal angle 
-#initial_direction /= np.sqrt(np.sum(np.square(initial_direction)))      # Normalize
+# All values in base SI units
+#earth_radius = 6371000
 
-animation_count = 4000
+# Take transmitter to be origin
+#transmitter_f = 1.1*10**7
+#transmitter_speed = 3*10**8
+#transmitter_position_global = [0,0,0]
 
-#get correct velocity later
+#initial_direction = math.radians(45)                                                  # At the moment this is launch angle FIXME
 
+#time_step = 0.00000000333333
+#animation_count = 100
 
-time_step = 0.00000333333                                               # In s
-#time_step = 0.000000333333                                               # In s
+#wavefront_coords = [2.5,0]
+#wavefront_direction = initial_direction                                             # Ranges from 0 to 2pi
+#wavefront_speed = transmitter_speed
+#wavefront_f = transmitter_f
 
-def plasma_frequency(ne):
-    return 1/(2 * scipy.constants.pi) * np.sqrt(ne * scipy.constants.elementary_charge ** 2 / (scipy.constants.epsilon_0 * scipy.constants.electron_mass))
-
-def plot_wavefront():
-
-    #plt.plot([wavefront_coords[0]],[wavefront_coords[1]], "or")
-    #plt.arrow(wavefront_coords[0], wavefront_coords[1], wavefront_direction[0]*time_step, wavefront_direction[1]*time_step, head_width=1, head_length=1, color="red")
-    pass
-
-
-# going over poles could cause logical error
-def update_pos_fixed(pos, direction,  step):
-    next_pos = []
-    next_pos.append(direction[0] * step + pos[0])
-    merid = (pos[0]*direction[1] * step + pos[1]) % (2*math.pi)
-    if merid > math.pi:
-        merid -= math.pi
-        merid = math.pi - merid
-    next_pos.append(merid)
-    next_pos.append((pos[0]*math.sin(pos[1])*direction[2]*step + pos[2]) % (2*math.pi))
-    return np.array(next_pos)
-    
-
-def fpe_grad(wavefront_coords, ne_interp):
-    # r component
-    # division incorrect since in diffent units (polar vs geo)
-    # cactually maybe not!
-    #possibly use np.grad to take into account other points...?
-    rn1 = plasma_frequency(ne_interp(convert_to_geo_coords(wavefront_coords + np.array([1,0,0]))))[0]
-    rn2 = plasma_frequency(ne_interp(convert_to_geo_coords(wavefront_coords + np.array([-1,0,0]))))[0]
-    r_comp = (rn1 - rn2)/2
-
-    theta_comp = 0 # TODO FIX
-
-    phin1 = plasma_frequency(ne_interp(convert_to_geo_coords(wavefront_coords + np.array([0,0,0.01]))))[0]
-    phin2 = plasma_frequency(ne_interp(convert_to_geo_coords(wavefront_coords + np.array([0,0,-0.01]))))[0]
-    phi_comp = (phin1 - phin2)/0.02 * 1/(wavefront_coords[0] * math.sin(wavefront_coords[1]))
-
-    #missed other component of grad!!
-    #print()
-    #print(f"phin1 {phin1}")
-    #print(f"phin2 {phin2}")
-    #print(wavefront_coords[0])
-    #print(f"long {convert_to_geo_coords(wavefront_coords)[2]}")
-    #print(f"r_comp {r_comp}")
-    #print(f"phi_comp {phi_comp}")
-    return np.array([r_comp, theta_comp, phi_comp])
-
-    
-
+#def plasma_frequency(ne):
+#    return 1/(2 * scipy.constants.pi) * np.sqrt(ne * scipy.constants.elementary_charge ** 2 / (scipy.constants.epsilon_0 * scipy.constants.electron_mass))
 
 # ne = Sum_type (ni_type)
 def get_electron_density(dex, fname):
     return dex.extract_data(fname, "O_plus_density") + dex.extract_data(fname, "H_plus_density") + dex.extract_data(fname, "He_plus_density") + dex.extract_data(fname, "N_plus_density") + dex.extract_data(fname, "NO_plus_density") + dex.extract_data(fname, "O2_plus_density") + dex.extract_data(fname, "N2_plus_density")
 
-# spher_coords = [r, theta, phi]
-def convert_to_geo_coords(spher_coords):
-    geo_coords = []                     # Will be in format [alt, lat, lon]
-    geo_coords.append((spher_coords[0] - earth_radius)/1000)
-    geo_coords.append((scipy.constants.pi / 2 - spher_coords[1]) * 180 / (scipy.constants.pi))
-    geo_coords.append(spher_coords[2] * 180 / scipy.constants.pi)
-    return np.array(geo_coords)
+## use copy of list as opposed to list itself
+#def update_position(r, v, dt, theta):
+#    r[0] += v*math.cos(theta)*dt
+#    r[1] += v*math.sin(theta)*dt
+#    return r
 
+#def D(n, ne, f):
+#    d_func_num = np.sqrt(np.dot(n,n))
+#    d_func_denom = np.sqrt(1-(plasma_frequency(ne)**2)/(f**2))
+#    return d_func_num/d_func_denom
 
-
-wavefront_coords = transmitter_position_spher[:]
-wavefront_direction = initial_direction[:]
-wavefront_f = transmitter_f
-
-dex = extractor.Extractor()
-fname = "data-no-upload/wfs.t00z.ipe10.20230629_211000.nc"
-ne = get_electron_density(dex, fname)
-alt = dex.extract_data(fname, "alt")
-lat = dex.extract_data(fname, "lat")
-lon = dex.extract_data(fname, "lon")
-
-# ALTERATION FIXME
-ne = np.ones((58,91,90))
-
-# FOR SINGLE LAYER
-#ne[45:][:][:] = 2*10**12
-
-# FOR A TILTED LAYER
-#for j in range(len(ne[0][0])):
-#    for i in range(len(ne)):
-#        for k in range(len(ne[0])):
-#            if i > j-20:
-#                ne[i][k][j] = 2*10**12
-
-
-# for vertical side for gradient testing:
-for j in range(len(ne[0][0])):
-    for i in range(len(ne)):
-        for k in range(len(ne[0])):
-            if j < 10:
-                ne[i][k][j] = 2*10**12
-
-
-#sys.exit()
-
-
-
-
-
-XS = []
-YS = []
-ZS = []
-c = 0
-ge_coords_full_1  = []
-ge_coords_full_2  = []
-
-gr_c_1 = []
-gr_c_2 = []
-while True:
-    c+= 1
-    reflecting = False
-    # STEP 1: update wavefront position
-
-    wavefront_coords_new = update_pos_fixed(wavefront_coords, wavefront_direction, time_step)
-    
-    # STEP 2: test plasma freq.
-    # does this need to be done every time??
-    ne_interp = scipy.interpolate.RegularGridInterpolator((alt, lat, lon), ne)
+def D_grad(position, ne_interp, d, n, f):
+    # TODO remove try except
     try:
-        f_pe = plasma_frequency(ne_interp(convert_to_geo_coords(wavefront_coords_new)))
-    except ValueError as e:
-        f_pe = 0
-
-
-    if wavefront_f < f_pe:
-        # wave is evanescent
-        # FIXME
-        print('reflecting')
-        reflecting = True
-        wavefront_direction[0] *= -1
-        #wavefront_coords_new = wavefront_coords
-        wavefront_coords = wavefront_coords_new 
-    else:
-        # wave continues
-        wavefront_coords = wavefront_coords_new 
-
-
-
-        
-    plot_wavefront()
-    theta, phi = np.linspace(0, 2 * np.pi, 40), np.linspace(0, np.pi, 40)
-    #THETA, PHI = np.meshgrid(theta, phi)
-    R = wavefront_coords[0]
-    THETA = wavefront_coords[1]
-    PHI = wavefront_coords[2]
-    X = R * np.sin(THETA) * np.cos(PHI)
-    Y = R * np.sin(THETA) * np.sin(PHI)
-    Z = R * np.cos(THETA)
-    XS.append(X)
-    YS.append(Y)
-    ZS.append(Z)
-    #fig = plt.figure()
-    #ax = fig.add_subplot(1,1,1, projection='3d')
-    lim = 10000000
-    #ax.axes.set_xlim3d(left=-lim, right=lim) 
-    #ax.axes.set_ylim3d(bottom=-lim, top=lim) 
-    #ax.axes.set_zlim3d(bottom=-lim, top=lim)
-    #plot = ax.scatter(np.array(XS),np.array(YS),np.array(ZS))
-    # sphere plot
-    r = earth_radius
-    u , v = np.mgrid[0:2*np.pi:20j, 0:np.pi:10j]
-    x1 = r*np.cos(u)*np.sin(v)
-    y1 = r*np.sin(u)*np.sin(v)
-    z1 = r*np.cos(v)
-    #ax.plot_wireframe(x1, y1, z1, color="r")
-
-    lonp = 356 
-    altp = 100
-    g_coords = convert_to_geo_coords(wavefront_coords)
-    ge_coords_full_1.append(g_coords[0]/2655*altp)
-    ge_coords_full_2.append(g_coords[2]/356*lonp)
-
-    #should go in try except
-    # GIVES GRAD OF ne NOT OF fpe FIXME
-    try:
-        gr_c = fpe_grad(wavefront_coords, ne_interp)
-    except:
-        gr_c = [0.1,0.1,0.1]
-
-    if gr_c[0] == 0:
-        gr_c[0] = 0.0000000001
-    if gr_c[2] == 0:
-        gr_c[2] = 0.0000000001
-    #plt.arrow(ge_coords_full_2[i], ge_coords_full_1[i], gr_c_2[i], gr_c_1[i], head_width=1, head_length=1, color="red")
+        dDx = D(n, ne_interp(np.array([position[1], position[0]+d/2])), f) - D(n, ne_interp(np.array([position[1], position[0]-d/2])), f)
+        dDz = D(n, ne_interp(np.array([position[1]+d/2, position[0]])), f) - D(n, ne_interp(np.array([position[1]-d/2, position[0]])), f)
+    except ValueError:
+        dDx = dDz = 0
+    return np.array([dDx/d, dDz/d])
     
-    gr_c[0] *= 1000
-    gr_c[2] *= 180/scipy.constants.pi
-    gr_c[0] = gr_c[0] * altp/2655
-    gr_c[2] = gr_c[2] * lonp/356
-
-    #print(gr_c[0])
-    #print(gr_c[2])
-    #print()
     
 
-    #gr_c_1.append(0.000000001*gr_c[0]+ge_coords_full_1[-1])
-    #gr_c_2.append(0.000000001*gr_c[1]+ge_coords_full_2[-1])
-    if reflecting:
-        gr_c_1.append(0.0001*gr_c[0])
-        gr_c_2.append(0.0001*gr_c[2])
-    else:
-        gr_c_1.append(0)
-        gr_c_2.append(0)
-    print(gr_c)
+slope = 0.2
+ne_grid = np.ones((100,100)) 
+for i in range(100):
+    for j in range(100):
+        if i > 30+slope*j:
+            ne_grid[i][j] = 10**11*(i-30-slope*j)
+ne_interp = scipy.interpolate.RegularGridInterpolator((np.linspace(0,100,100), np.linspace(0,100,100)), ne_grid)
 
+x_p = 10
+z_p = 10
+x_i = np.linspace(0,100,x_p)
+z_i = np.linspace(0,100,z_p)
+d = np.ones((z_p, x_p))
+for dy in range(z_p):
+    for dx in range(x_p):
+        try:
+            d[dy][dx] = plasma_frequency(ne_interp(np.array([dy*100/z_p,dx*100/x_p])))
+        except:
+            pass
 
+#plt.imshow(d, aspect="auto", origin = "lower")
+#plt.colorbar()
+#plt.show()
 
-    if c > animation_count:
-        plt.show()
-        lon_i = np.linspace(0,356,lonp)
-        alt_i = np.linspace(0, 2655, altp)
-        d = np.ones((altp, lonp))
-        const_lat = convert_to_geo_coords(wavefront_coords)[1]
-        for dy in range(altp):
-            for dx in range(lonp):
-                try:
-                    d[dy][dx] = plasma_frequency(ne_interp(np.array([[alt_i[dy], const_lat, lon_i[dx]]])))
-                except:
-                    pass
+#animation_num = 0
+#wavefront_position_history_xs = []
+#wavefront_position_history_zs = []
+#while animation_num < animation_count:
+#    wavefront_coords_new = update_position(wavefront_coords[:], wavefront_speed, time_step, wavefront_direction)    
 
-        plt.imshow(d, aspect="auto", origin = "lower")
-        plt.scatter(ge_coords_full_2, ge_coords_full_1, color="r")
-        #plt.plot(ge_coords_full_2, ge_coords_full_1, color="r")
-        plt.scatter(gr_c_2, gr_c_1, color="g")
-        plt.colorbar()
-        for i in range(len(ge_coords_full_1)):
-
-            try:
-                plt.arrow(ge_coords_full_2[i], ge_coords_full_1[i], gr_c_2[i], gr_c_1[i], head_width=0.01, head_length=0.01, color="y")
-            except ValueError:
-                #print(gr_c_2[i])
-                plt.arrow(ge_coords_full_2[i], ge_coords_full_1[i], gr_c_2[i][0], gr_c_1[i], head_width=0.01, head_length=0.01, color="y")
-        #plt.plot(gr_c_1, gr_c_2, color="g")
-        plt.show()
-    else:
-        plt.close()
-
-
-    #plt.imshow(ne[:][:][int(const_lat)],origin='upper',aspect='auto')#,extent=[0,100*1000,0,100*1000])
-    #plt.imshow(g[1],origin='upper',aspect='auto',extent=[0,100*1000,0,100*1000])
-    #plt.colorbar()
-    #plt.show()
-
-# are we sure about sphericals? most likely yes.
-
-#ani = FuncAnimation(fig, animation_func, frames=10,
-#                    interval=1, repeat=False)
-#plt.close()
+#    f_pe = plasma_frequency(ne_interp(np.array([wavefront_coords_new[1], wavefront_coords_new[0]])))
 #
-#from matplotlib.animation import PillowWriter
-## Save the animation as an animated GIF
-#ani.save("simple_animation.gif", dpi=300,
-#         writer=PillowWriter(fps=60))
-#sys.exit()
+#    print(D_grad(wavefront_coords, ne_interp, 0.1, wavefront_speed * np.array([math.cos(wavefront_direction), math.sin(wavefront_direction)]), wavefront_f))
+#    # 
+#
+#    if wavefront_f < f_pe:
+#        print('reflecting')
+#        n = np.array([1,-1/slope])
+#        n = n / np.sqrt(np.sum(n**2))
+#
+#        a = -np.arctan(slope)
+#        print(math.degrees(a))
+#        wavefront_direction = 2 * math.pi - 2 * a - wavefront_direction
 
-#test_data = np.ones((100,100))
-#for j in range(len(test_data)):
-#    for i in range(len(test_data[0])):
-#        if j > 30+i:
-#            test_data[j][i] = 100 
-#test_data = np.rot90(np.rot90(np.array(test_data)))
-#transmitter_position = np.array([0,-7.6145,110.7122])           # [alt, lat, lon]
+        #wavefront_direction_vector = np.array([math.cos(wavefront_direction),math.sin(wavefront_direction)])
+
+        #wavefront_direction_new = []
+        #wavefront_direction_new.append(wavefront_direction_vector[0]-2 * wavefront_direction_vector[0] * n[0] * n[0])
+        #wavefront_direction_new.append(wavefront_direction_vector[1]-2 * wavefront_direction_vector[1] * n[1] * n[1])
+        #a = np.gradient(plasma_frequency(ne_grid))[0][int(wavefront_coords[1])][int(wavefront_coords[0])]
+        #b = np.gradient(plasma_frequency(ne_grid))[1][int(wavefront_coords[1])][int(wavefront_coords[0])]
+        #print(a)
+        #print(b)
+        #wavefront_direction_vector_new = np.array(wavefront_direction_new)
+        #wavefront_direction = math.atan2(wavefront_direction_vector_new[1],wavefront_direction_vector_new[0])
+        #print(wavefront_direction)
+
+#    wavefront_coords = wavefront_coords_new # This could cause problems with getting stuck
+#
+#    wavefront_position_history_xs.append(wavefront_coords[0])
+#    wavefront_position_history_zs.append(wavefront_coords[1])
+#    animation_num += 1
+#
+#plt.plot(wavefront_position_history_xs, wavefront_position_history_zs,"o")
+##plt.imshow(np.gradient(plasma_frequency(ne_grid))[1], aspect="auto", origin="lower")
+##plt.imshow(d, aspect="auto", origin="lower") # show fpe, not the other one
+#plt.imshow(ne_grid, aspect="auto", origin="lower") # show fpe, not the other one
+#plt.colorbar()
+#plt.show()
+

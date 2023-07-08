@@ -19,11 +19,11 @@ import mpl_toolkits.mplot3d.axes3d as axes3d
 earth_radius = 6371*1000
 transmitter_f = 1.1*10**7                                                   # In Hz
 #wave_vel = 3*10**8                                                      # in m/s
-transmitter_position_spher = np.array([earth_radius,3.141*6/8, 50/180 * 3.141])
-initial_direction = np.array([3*10**8,0,-0.00001])                             # d/dt[r, theta, phi], where theta = polar angle, phi = azymuthal angle 
+transmitter_position_spher = np.array([earth_radius,3.141*6/8, 200/180 * 3.141])
+initial_direction = np.array([3*10**8,0,0.00001])                             # d/dt[r, theta, phi], where theta = polar angle, phi = azymuthal angle 
 #initial_direction /= np.sqrt(np.sum(np.square(initial_direction)))      # Normalize
 
-animation_count = 4000
+animation_count = 1000
 
 #get correct velocity later
 
@@ -108,7 +108,7 @@ lat = dex.extract_data(fname, "lat")
 lon = dex.extract_data(fname, "lon")
 
 # ALTERATION FIXME
-ne = np.ones((58,91,90))
+#ne = np.ones((58,91,90))
 
 # FOR SINGLE LAYER
 #ne[45:][:][:] = 2*10**12
@@ -122,11 +122,11 @@ ne = np.ones((58,91,90))
 
 
 # for vertical side for gradient testing:
-for j in range(len(ne[0][0])):
-    for i in range(len(ne)):
-        for k in range(len(ne[0])):
-            if j < 10:
-                ne[i][k][j] = 2*10**12
+#for j in range(len(ne[0][0])):
+#    for i in range(len(ne)):
+#        for k in range(len(ne[0])):
+#            if j < 10:
+#                ne[i][k][j] = 2*10**12
 
 
 #sys.exit()
